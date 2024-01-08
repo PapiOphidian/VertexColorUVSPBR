@@ -1,2 +1,22 @@
-# VertexColorUVSPBR
- A Unity3D shader for the BIRP that leverages vertex colors to define IDs that coorespond to sections on a texture atlas
+Hey! This project was really fun to make and I decided to release it for free because there's nothing similar to it. If you like what I do and want to ensure I keep doing what I'm doing, consider making a donation to my [PayPal](https://paypal.me/papiophidian). This project will continue to receive maintenance and features.
+
+A good chunk of this project is based off the rendering tutorial from [catlikecoding](https://catlikecoding.com/unity/tutorials/rendering/). Huge thanks to Jasper Flick for such great tutorials and helping even novices to shader dev like myself with easy to understand graphics, code, and explanations. Some help and suggestions were received from the VRChat community, so thank you as well! You all are cool people.
+
+# What is this for?
+Tiling subsections of atlases. Tiling traditionally can only happen once the mesh's UVs spill off the edge of the texture which can lead to some gross setups and lots of wasted space used to tile. I used to use a 4k wide by 8k tall texture where more than half of the vertical was dedicated to tiling horizontally and I still ran into cases where the texture needed to also tile vertically. There was also lots of wasted space on that atlas and some of the sub textures ran into the issue of being horribly blurry at lower texture resolutions. The necessity for a higher resolution texture meant more disk and memory space it occupied especially when uncompressed, so I aimed to fix that.
+
+## Why tiling atlas sub textures?
+Static batching. This can only happen when meshes use the same material. If I wanted to tile traditionally and didn't use an atlas, the amount of draw calls for my projects would bring even pretty tough PCs to a halt! Static batching is very important!!
+
+# Ok COOL! How does this sh** work?
+This does require some work from your end and that work is vertex color painting (This shader uses the B channel. No particular reason why) on the meshes you'll be using the shader on. If your meshes' UVs don't spill into other sub textures, then you won't need to paint those meshes. The purpose of doing this is to define IDs that the shader will use later. In the material, you will also need to configure which fractions of the atlas will map to a specific ID. By default, the shader supports up to 30 sub sections, but more can be added trivially by adding the properties in the .shader file and then in the Helpers.cginc file. It might look scary, but trust me it's easy. IDs should be able to be resolved to any whole number greater than 1. For example, Blender by default RGB painting is in the range of 0-1. An ID of 1 will be painted as 0.00392156862745 (Blender will round the float value to be only a few decimal places). How I ended up with that number is: 1 divided by 255 times x where x is the ID. As an expression, that would be 1 / 255 * x. The shader multiplies the color.b by 255 and then compares that to map to IDs to define sections. The shader also allows you to define the default section (which is for when any mesh has a color.b of 1 or full blue).
+
+Like I mentioned, you will need to also define sections in the material which are defined as a Vector or float4 (x1, y1, x2, y2). I'd recommend doing x1 and y1 as the top left corner of the sub texture and x2 and y2 as the bottom right corner, but I don't think it matters (I haven't tested it). Each value needs to be in the range of 0-1 (fractions)
+
+As a friendly reminder, shader UVs start at the bottom left corner being 0, 0 and the top right corner is 1, 1.
+
+# Any caveats?
+A few. If you want ideal results, you should have some padding between sub textures if you are using mip maps, ambient occlusion, or parallax. Having them right next to each other can cause the mentioned effects to spill over to other sections. There is a slider to essentially cut off x pixels from sections to sorta compensate for this, but isn't really recommended for use. An ideal solution here would be bilinear sampling which I do plan on adding, but I haven't started working on it yet.
+
+# Performance?
+I tried to make it sample textures as little as possible, but some features are expensive such as parallax raymarching which samples once per raymarch step. There are some UNITY_BRANCH directives in there which supposedly do incur a decent performance cost, but are mainly used to avoid texture samples. Performance is good. Mobile VR can run it decently. If a feature's strength is set to 0, then it will not sample the texture at all (or try not to), i.e. AO strength, Metallic and Smoothness strength, etc. Box projections can be forced on for android which is a bit of a performance cost. Reflection probes can also be blended, but these features can be turned off in your graphics settings.
